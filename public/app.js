@@ -12,6 +12,7 @@ const elements = {
   reportTitle: document.querySelector("#reportTitle"),
   copyBtn: document.querySelector("#copyBtn"),
   downloadBtn: document.querySelector("#downloadBtn"),
+  imageBtn: document.querySelector("#imageBtn"),
   printBtn: document.querySelector("#printBtn")
 };
 
@@ -87,7 +88,8 @@ elements.clearBtn.addEventListener("click", clearAll);
 elements.analyzeBtn.addEventListener("click", analyzeTranscript);
 elements.copyBtn.addEventListener("click", copyMarkdown);
 elements.downloadBtn.addEventListener("click", downloadMarkdown);
-elements.printBtn.addEventListener("click", () => window.print());
+elements.imageBtn.addEventListener("click", downloadPageImages);
+elements.printBtn.addEventListener("click", printPagesAsImages);
 
 updateWordCount();
 
@@ -283,7 +285,186 @@ function setBusy(isBusy) {
 function setExportEnabled(enabled) {
   elements.copyBtn.disabled = !enabled;
   elements.downloadBtn.disabled = !enabled;
+  elements.imageBtn.disabled = !enabled;
   elements.printBtn.disabled = !enabled;
+}
+
+async function downloadPageImages() {
+  const pages = getReportPages();
+  if (!pages.length) return;
+
+  setExportBusy(true, "正在生成图片...");
+  try {
+    for (const [index, page] of pages.entries()) {
+      const dataUrl = await renderPageToPng(page);
+      const link = document.createElement("a");
+      link.href = dataUrl;
+      link.download = `${slugify(currentReport?.title || "interview-report")}-page-${String(index + 1).padStart(2, "0")}.png`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      await wait(160);
+    }
+    setStatus(`已生成 ${pages.length} 张页面图片。`);
+  } catch (error) {
+    setStatus(error.message || "图片生成失败，请重试。", true);
+  } finally {
+    setExportBusy(false);
+  }
+}
+
+async function printPagesAsImages() {
+  const pages = getReportPages();
+  if (!pages.length) return;
+
+  const printWindow = window.open("", "_blank");
+  if (!printWindow) {
+    setStatus("浏览器阻止了打印窗口，请允许弹窗后重试。", true);
+    return;
+  }
+  printWindow.document.write("<p style=\"font-family: system-ui, sans-serif; padding: 24px;\">正在准备 PDF...</p>");
+  printWindow.document.close();
+
+  setExportBusy(true, "正在准备 PDF...");
+  try {
+    const images = [];
+    for (const page of pages) {
+      images.push(await renderPageToPng(page));
+    }
+    writeImagePrintWindow(printWindow, images);
+    setStatus("打印窗口已打开，可选择另存为 PDF。");
+  } catch (error) {
+    printWindow.close();
+    setStatus(error.message || "PDF 生成失败，请重试。", true);
+  } finally {
+    setExportBusy(false);
+  }
+}
+
+function getReportPages() {
+  return Array.from(elements.report.querySelectorAll(".page"));
+}
+
+async function renderPageToPng(page) {
+  const rect = page.getBoundingClientRect();
+  const width = Math.ceil(rect.width);
+  const height = Math.ceil(page.scrollHeight);
+  const scale = Math.min(2, Math.max(1, window.devicePixelRatio || 1));
+  const clone = page.cloneNode(true);
+
+  inlineComputedStyles(page, clone);
+  clone.setAttribute("xmlns", "http://www.w3.org/1999/xhtml");
+  clone.style.width = `${width}px`;
+  clone.style.height = `${height}px`;
+  clone.style.margin = "0";
+  clone.style.boxShadow = "none";
+
+  const serialized = new XMLSerializer().serializeToString(clone);
+  const svg = `
+    <svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}">
+      <foreignObject width="100%" height="100%">${serialized}</foreignObject>
+    </svg>
+  `;
+  const url = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+  const image = await loadImage(url);
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.ceil(width * scale);
+  canvas.height = Math.ceil(height * scale);
+
+  const context = canvas.getContext("2d");
+  context.scale(scale, scale);
+  context.fillStyle = "#fffdfa";
+  context.fillRect(0, 0, width, height);
+  context.drawImage(image, 0, 0, width, height);
+
+  return canvas.toDataURL("image/png");
+}
+
+function inlineComputedStyles(source, clone) {
+  const computed = window.getComputedStyle(source);
+  clone.style.cssText = computed.cssText;
+
+  Array.from(source.children).forEach((sourceChild, index) => {
+    const cloneChild = clone.children[index];
+    if (cloneChild) inlineComputedStyles(sourceChild, cloneChild);
+  });
+}
+
+function loadImage(url) {
+  return new Promise((resolve, reject) => {
+    const image = new Image();
+    image.onload = () => resolve(image);
+    image.onerror = () => reject(new Error("页面图片渲染失败。"));
+    image.src = url;
+  });
+}
+
+function writeImagePrintWindow(printWindow, images) {
+  const imageTags = images
+    .map((src, index) => `<section class="print-page"><img src="${src}" alt="Page ${index + 1}" /></section>`)
+    .join("");
+
+  printWindow.document.open();
+  printWindow.document.write(`
+    <!doctype html>
+    <html>
+      <head>
+        <meta charset="utf-8" />
+        <title>${escapeHtml(currentReport?.title || "面试复盘报告")}</title>
+        <style>
+          @page { size: A4; margin: 0; }
+          * { box-sizing: border-box; }
+          body { margin: 0; background: white; }
+          .print-page {
+            width: 210mm;
+            height: 297mm;
+            display: grid;
+            place-items: center;
+            page-break-after: always;
+            break-after: page;
+            overflow: hidden;
+            background: white;
+          }
+          .print-page:last-child { page-break-after: auto; break-after: auto; }
+          img {
+            display: block;
+            max-width: 100%;
+            max-height: 100%;
+            width: auto;
+            height: auto;
+          }
+        </style>
+      </head>
+      <body>${imageTags}</body>
+    </html>
+  `);
+  printWindow.document.close();
+
+  const waitForImages = Array.from(printWindow.document.images).map((image) => {
+    if (image.complete) return Promise.resolve();
+    return new Promise((resolve) => {
+      image.onload = resolve;
+      image.onerror = resolve;
+    });
+  });
+
+  Promise.all(waitForImages).then(() => {
+    printWindow.focus();
+    printWindow.print();
+  });
+}
+
+function setExportBusy(isBusy, message = "") {
+  elements.copyBtn.disabled = isBusy;
+  elements.downloadBtn.disabled = isBusy;
+  elements.imageBtn.disabled = isBusy;
+  elements.printBtn.disabled = isBusy;
+  if (message) setStatus(message);
+  if (!isBusy && currentReport) setExportEnabled(true);
+}
+
+function wait(ms) {
+  return new Promise((resolve) => window.setTimeout(resolve, ms));
 }
 
 function setStatus(message, isError = false) {

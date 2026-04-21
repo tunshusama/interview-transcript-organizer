@@ -444,8 +444,16 @@ button:disabled {
 }
 
 @media print {
+  @page {
+    size: A4;
+    margin: 0;
+  }
+
+  html,
   body {
     background: white;
+    width: 210mm;
+    margin: 0;
   }
 
   .workspace,
@@ -461,14 +469,34 @@ button:disabled {
   }
 
   #report {
+    display: block;
     gap: 0;
   }
 
   .page {
-    min-height: auto;
+    width: 210mm;
+    min-height: 297mm;
+    break-after: page;
+    break-inside: avoid;
     page-break-after: always;
+    page-break-inside: avoid;
     border: 0;
     box-shadow: none;
+    border-radius: 0;
     padding: 18mm 16mm;
+    overflow: hidden;
+  }
+
+  .page:last-child {
+    break-after: auto;
+    page-break-after: auto;
+  }
+
+  .qa-item,
+  .answer-block,
+  .improvement-block,
+  .question-list li {
+    break-inside: avoid;
+    page-break-inside: avoid;
   }
 }
