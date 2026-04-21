@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>面试转写整理工具</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <main class="app-shell">
+      <section class="workspace">
+        <header class="topbar">
+          <div>
+            <p class="eyebrow">Interview Debrief</p>
+            <h1>面试转写整理工具</h1>
+          </div>
+          <div class="settings">
+            <label>
+              DeepSeek Key
+              <input id="apiKey" type="password" autocomplete="off" placeholder="sk-..." />
+            </label>
+            <label>
+              Model
+              <input id="model" type="text" value="deepseek-chat" />
+            </label>
+          </div>
+        </header>
+
+        <section class="input-panel" aria-label="录音转写输入">
+          <div class="panel-head">
+            <div>
+              <h2>录音转写</h2>
+              <p>粘贴完整转写稿，保留说话人标记会更准。</p>
+            </div>
+            <span id="wordCount">0 字</span>
+          </div>
+          <textarea id="transcript" spellcheck="false" placeholder="示例：
+面试官：请介绍一下你最近做的一个项目。
+我：我最近负责了...
+面试官：你在里面最关键的决策是什么？"></textarea>
+          <div class="actions">
+            <button id="analyzeBtn" class="primary">生成复盘</button>
+            <button id="clearBtn" class="ghost">清空</button>
+            <p id="status" role="status"></p>
+          </div>
+        </section>
+      </section>
+
+      <section class="report-area" aria-label="生成结果">
+        <div class="report-toolbar">
+          <div>
+            <p class="eyebrow">Report</p>
+            <h2 id="reportTitle">等待生成</h2>
+          </div>
+          <div class="report-actions">
+            <button id="copyBtn" class="ghost" disabled>复制 Markdown</button>
+            <button id="downloadBtn" class="ghost" disabled>下载 Markdown</button>
+            <button id="printBtn" class="ghost" disabled>打印 / PDF</button>
+          </div>
+        </div>
+        <div id="report" class="report-empty">
+          <p>生成后这里会出现分页报告。第一页是问题整合，后面每页对应一个问题和你的回答复盘。</p>
+        </div>
+      </section>
+    </main>
+
+    <script src="/app.js" type="module"></script>
+  </body>
+</html>
