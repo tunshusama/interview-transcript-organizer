@@ -16,6 +16,19 @@
           </div>
           <div class="settings">
             <label>
+              LLM Preset
+              <select id="provider">
+                <option value="deepseek">DeepSeek</option>
+                <option value="openai">OpenAI</option>
+                <option value="moonshot">Moonshot / Kimi</option>
+                <option value="qwen">通义千问</option>
+                <option value="zhipu">智谱 GLM</option>
+                <option value="openrouter">OpenRouter</option>
+                <option value="ollama">Ollama Local</option>
+                <option value="custom">自定义</option>
+              </select>
+            </label>
+            <label>
               LLM Key
               <input id="apiKey" type="password" autocomplete="off" placeholder="sk-..." />
             </label>

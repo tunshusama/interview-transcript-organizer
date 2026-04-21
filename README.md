@@ -11,7 +11,6 @@
 - 每个问题包含：面试官问题、你的回答概括、必要时的「答得不好的点以及如何修改」
 - 保留面试官问题的关键前提，避免把长铺垫压缩成失真的短标题
 - 识别漏掉核心考点的回答，例如商业化题没讲成本、利润、付费意愿和 ROI
-- 针对 SEO、A/B 测试、增长实验、用户激活等面试场景给出更严格的复盘判断
 - 对明显转写错字、口癖和断句做轻度清洗
 - 对邮箱、链接、手机号、密钥等敏感信息做基础脱敏
 - 支持复制 Markdown、下载 Markdown、浏览器打印/另存 PDF
@@ -50,6 +49,17 @@ PORT=8787
 ```
 
 `LLM_API_URL` 需要是 OpenAI-compatible 的 `/chat/completions` 接口。页面右上角也可以临时填写 API URL、Model 和 Key。
+
+页面内置常用 LLM 预设，选择后会自动填入 API URL 和 Model：
+
+- DeepSeek
+- OpenAI
+- Moonshot / Kimi
+- 通义千问兼容模式
+- 智谱 GLM
+- OpenRouter
+- Ollama 本地模型
+- 自定义手写配置
 
 ## 安全说明
 

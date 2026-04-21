@@ -1,4 +1,5 @@
 const elements = {
+  provider: document.querySelector("#provider"),
   apiKey: document.querySelector("#apiKey"),
   apiUrl: document.querySelector("#apiUrl"),
   model: document.querySelector("#model"),
@@ -17,21 +18,68 @@ const elements = {
 let currentMarkdown = "";
 let currentReport = null;
 const ITEMS_PER_PAGE = 3;
+const PROVIDER_PRESETS = {
+  deepseek: {
+    apiUrl: "https://api.deepseek.com/chat/completions",
+    model: "deepseek-chat"
+  },
+  openai: {
+    apiUrl: "https://api.openai.com/v1/chat/completions",
+    model: "gpt-4o-mini"
+  },
+  moonshot: {
+    apiUrl: "https://api.moonshot.cn/v1/chat/completions",
+    model: "moonshot-v1-8k"
+  },
+  qwen: {
+    apiUrl: "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions",
+    model: "qwen-plus"
+  },
+  zhipu: {
+    apiUrl: "https://open.bigmodel.cn/api/paas/v4/chat/completions",
+    model: "glm-4-flash"
+  },
+  openrouter: {
+    apiUrl: "https://openrouter.ai/api/v1/chat/completions",
+    model: "deepseek/deepseek-chat-v3.1"
+  },
+  ollama: {
+    apiUrl: "http://localhost:11434/v1/chat/completions",
+    model: "llama3.1"
+  }
+};
 
+elements.provider.value = localStorage.getItem("llm_provider") || "deepseek";
 elements.apiKey.value = localStorage.getItem("llm_api_key") || localStorage.getItem("deepseek_api_key") || "";
-elements.apiUrl.value = localStorage.getItem("llm_api_url") || "https://api.deepseek.com/chat/completions";
-elements.model.value = localStorage.getItem("llm_model") || localStorage.getItem("deepseek_model") || "deepseek-chat";
+elements.apiUrl.value = localStorage.getItem("llm_api_url") || PROVIDER_PRESETS.deepseek.apiUrl;
+elements.model.value = localStorage.getItem("llm_model") || localStorage.getItem("deepseek_model") || PROVIDER_PRESETS.deepseek.model;
+
+elements.provider.addEventListener("change", () => {
+  const provider = elements.provider.value;
+  localStorage.setItem("llm_provider", provider);
+
+  if (provider === "custom") return;
+
+  const preset = PROVIDER_PRESETS[provider];
+  if (!preset) return;
+  elements.apiUrl.value = preset.apiUrl;
+  elements.model.value = preset.model;
+  localStorage.setItem("llm_api_url", preset.apiUrl);
+  localStorage.setItem("llm_model", preset.model);
+});
 
 elements.apiKey.addEventListener("input", () => {
   localStorage.setItem("llm_api_key", elements.apiKey.value.trim());
 });
 
 elements.apiUrl.addEventListener("input", () => {
-  localStorage.setItem("llm_api_url", elements.apiUrl.value.trim() || "https://api.deepseek.com/chat/completions");
+  localStorage.setItem("llm_api_url", elements.apiUrl.value.trim() || PROVIDER_PRESETS.deepseek.apiUrl);
+  markCustomProvider();
 });
 
 elements.model.addEventListener("input", () => {
-  localStorage.setItem("llm_model", elements.model.value.trim() || "deepseek-chat");
+  localStorage.setItem("llm_model", elements.model.value.trim() || PROVIDER_PRESETS.deepseek.model);
+  markCustomProvider();
 });
 
 elements.transcript.addEventListener("input", updateWordCount);
@@ -42,6 +90,11 @@ elements.downloadBtn.addEventListener("click", downloadMarkdown);
 elements.printBtn.addEventListener("click", () => window.print());
 
 updateWordCount();
+
+function markCustomProvider() {
+  elements.provider.value = "custom";
+  localStorage.setItem("llm_provider", "custom");
+}
 
 async function analyzeTranscript() {
   const transcript = elements.transcript.value.trim();
