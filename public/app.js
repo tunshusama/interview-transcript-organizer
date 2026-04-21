@@ -352,14 +352,12 @@ async function renderPageToPng(page) {
   const scale = Math.min(2, Math.max(1, window.devicePixelRatio || 1));
   const clone = page.cloneNode(true);
 
-  inlineComputedStyles(page, clone);
   clone.setAttribute("xmlns", "http://www.w3.org/1999/xhtml");
   clone.style.width = `${width}px`;
   clone.style.height = `${height}px`;
   clone.style.margin = "0";
-  clone.style.boxShadow = "none";
 
-  const serialized = new XMLSerializer().serializeToString(clone);
+  const serialized = new XMLSerializer().serializeToString(createExportDocument(clone, width, height));
   const svg = `
     <svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}">
       <foreignObject width="100%" height="100%">${serialized}</foreignObject>
@@ -380,14 +378,38 @@ async function renderPageToPng(page) {
   return canvas.toDataURL("image/png");
 }
 
-function inlineComputedStyles(source, clone) {
-  const computed = window.getComputedStyle(source);
-  clone.style.cssText = computed.cssText;
+function createExportDocument(pageClone, width, height) {
+  const wrapper = document.createElement("div");
+  wrapper.setAttribute("xmlns", "http://www.w3.org/1999/xhtml");
+  wrapper.style.width = `${width}px`;
+  wrapper.style.height = `${height}px`;
+  wrapper.style.margin = "0";
+  wrapper.style.background = "#fffdfa";
+  wrapper.style.overflow = "hidden";
 
-  Array.from(source.children).forEach((sourceChild, index) => {
-    const cloneChild = clone.children[index];
-    if (cloneChild) inlineComputedStyles(sourceChild, cloneChild);
-  });
+  const style = document.createElement("style");
+  style.textContent = `
+    ${collectPageStyles()}
+    html, body { margin: 0; padding: 0; background: transparent; }
+    .page { box-shadow: none !important; transform: none !important; }
+  `;
+
+  wrapper.appendChild(style);
+  wrapper.appendChild(pageClone);
+  return wrapper;
+}
+
+function collectPageStyles() {
+  return Array.from(document.styleSheets)
+    .map((sheet) => {
+      try {
+        return Array.from(sheet.cssRules).map((rule) => rule.cssText).join("\n");
+      } catch {
+        return "";
+      }
+    })
+    .filter(Boolean)
+    .join("\n");
 }
 
 function loadImage(url) {
