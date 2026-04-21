@@ -9,8 +9,8 @@ const publicDir = join(root, "public");
 await loadDotEnv(join(root, ".env"));
 
 const PORT = Number(process.env.PORT || 8787);
-const DEEPSEEK_API_URL = "https://api.deepseek.com/chat/completions";
-const DEFAULT_MODEL = process.env.DEEPSEEK_MODEL || "deepseek-chat";
+const DEFAULT_API_URL = process.env.LLM_API_URL || process.env.DEEPSEEK_API_URL || "https://api.deepseek.com/chat/completions";
+const DEFAULT_MODEL = process.env.LLM_MODEL || process.env.DEEPSEEK_MODEL || "deepseek-chat";
 const MAX_BODY_BYTES = 2_500_000;
 
 const mimeTypes = {
@@ -49,7 +49,8 @@ server.listen(PORT, () => {
 async function handleAnalyze(req, res) {
   const body = await readJsonBody(req);
   const transcript = String(body.transcript || "").trim();
-  const apiKey = String(body.apiKey || process.env.DEEPSEEK_API_KEY || "").trim();
+  const apiKey = String(body.apiKey || process.env.LLM_API_KEY || process.env.DEEPSEEK_API_KEY || "").trim();
+  const apiUrl = String(body.apiUrl || DEFAULT_API_URL).trim();
   const model = String(body.model || DEFAULT_MODEL).trim();
 
   if (!transcript) {
@@ -63,11 +64,16 @@ async function handleAnalyze(req, res) {
   }
 
   if (!apiKey) {
-    sendJson(res, 400, { error: "缺少 DeepSeek API Key。请配置 .env 或在页面右上角填写。" });
+    sendJson(res, 400, { error: "缺少 LLM API Key。请配置 .env 或在页面右上角填写。" });
     return;
   }
 
-  const upstream = await fetch(DEEPSEEK_API_URL, {
+  if (!apiUrl) {
+    sendJson(res, 400, { error: "缺少 LLM API URL。请配置 .env 或在页面右上角填写。" });
+    return;
+  }
+
+  const upstream = await fetch(apiUrl, {
     method: "POST",
     headers: {
       "Authorization": `Bearer ${apiKey}`,
@@ -86,7 +92,7 @@ async function handleAnalyze(req, res) {
 
   if (!upstream.ok) {
     sendJson(res, upstream.status, {
-      error: humanizeDeepSeekError(upstream.status, raw)
+      error: humanizeLlmError(upstream.status, raw)
     });
     return;
   }
@@ -95,13 +101,13 @@ async function handleAnalyze(req, res) {
   try {
     completion = JSON.parse(raw);
   } catch {
-    sendJson(res, 502, { error: "DeepSeek 返回了无法解析的响应。" });
+    sendJson(res, 502, { error: "LLM 服务返回了无法解析的响应。" });
     return;
   }
 
   const content = completion?.choices?.[0]?.message?.content;
   if (!content) {
-    sendJson(res, 502, { error: "DeepSeek 没有返回整理结果。" });
+    sendJson(res, 502, { error: "LLM 服务没有返回整理结果。" });
     return;
   }
 
@@ -109,7 +115,7 @@ async function handleAnalyze(req, res) {
   try {
     report = normalizeReport(JSON.parse(content));
   } catch {
-    sendJson(res, 502, { error: "DeepSeek 返回的 JSON 格式不完整，请重试。" });
+    sendJson(res, 502, { error: "LLM 服务返回的 JSON 格式不完整，请重试。" });
     return;
   }
 
@@ -226,7 +232,7 @@ function maskSensitive(value) {
     .replace(/\b\d{12,}\b/g, "[编号]");
 }
 
-function humanizeDeepSeekError(status, raw) {
+function humanizeLlmError(status, raw) {
   let detail = "";
   try {
     detail = JSON.parse(raw)?.error?.message || "";
@@ -234,10 +240,10 @@ function humanizeDeepSeekError(status, raw) {
     detail = raw.slice(0, 300);
   }
 
-  if (status === 401) return "DeepSeek API Key 无效或已过期。";
-  if (status === 402) return "DeepSeek 账户余额不足或计费不可用。";
-  if (status === 429) return "DeepSeek 请求过于频繁，请稍后再试。";
-  return detail ? `DeepSeek 请求失败：${detail}` : "DeepSeek 请求失败，请稍后重试。";
+  if (status === 401) return "LLM API Key 无效或已过期。";
+  if (status === 402) return "LLM 账户余额不足或计费不可用。";
+  if (status === 429) return "LLM 请求过于频繁，请稍后再试。";
+  return detail ? `LLM 请求失败：${detail}` : "LLM 请求失败，请稍后重试。";
 }
 
 async function serveStatic(pathname, res) {

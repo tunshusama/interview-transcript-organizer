@@ -1,5 +1,6 @@
 const elements = {
   apiKey: document.querySelector("#apiKey"),
+  apiUrl: document.querySelector("#apiUrl"),
   model: document.querySelector("#model"),
   transcript: document.querySelector("#transcript"),
   wordCount: document.querySelector("#wordCount"),
@@ -17,15 +18,20 @@ let currentMarkdown = "";
 let currentReport = null;
 const ITEMS_PER_PAGE = 3;
 
-elements.apiKey.value = localStorage.getItem("deepseek_api_key") || "";
-elements.model.value = localStorage.getItem("deepseek_model") || "deepseek-chat";
+elements.apiKey.value = localStorage.getItem("llm_api_key") || localStorage.getItem("deepseek_api_key") || "";
+elements.apiUrl.value = localStorage.getItem("llm_api_url") || "https://api.deepseek.com/chat/completions";
+elements.model.value = localStorage.getItem("llm_model") || localStorage.getItem("deepseek_model") || "deepseek-chat";
 
 elements.apiKey.addEventListener("input", () => {
-  localStorage.setItem("deepseek_api_key", elements.apiKey.value.trim());
+  localStorage.setItem("llm_api_key", elements.apiKey.value.trim());
+});
+
+elements.apiUrl.addEventListener("input", () => {
+  localStorage.setItem("llm_api_url", elements.apiUrl.value.trim() || "https://api.deepseek.com/chat/completions");
 });
 
 elements.model.addEventListener("input", () => {
-  localStorage.setItem("deepseek_model", elements.model.value.trim() || "deepseek-chat");
+  localStorage.setItem("llm_model", elements.model.value.trim() || "deepseek-chat");
 });
 
 elements.transcript.addEventListener("input", updateWordCount);
@@ -40,6 +46,7 @@ updateWordCount();
 async function analyzeTranscript() {
   const transcript = elements.transcript.value.trim();
   const apiKey = elements.apiKey.value.trim();
+  const apiUrl = elements.apiUrl.value.trim();
   const model = elements.model.value.trim() || "deepseek-chat";
 
   if (!transcript) {
@@ -54,7 +61,7 @@ async function analyzeTranscript() {
     const response = await fetch("/api/analyze", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ transcript, apiKey, model })
+      body: JSON.stringify({ transcript, apiKey, apiUrl, model })
     });
 
     const payload = await response.json();
